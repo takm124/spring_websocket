@@ -12,13 +12,13 @@ public class ChatWebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.enableSimpleBroker("/entering");
-        registry.setApplicationDestinationPrefixes("/send");
+        registry.enableSimpleBroker("/sub");
+        registry.setApplicationDestinationPrefixes("/pub");
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("ws/multiChat").setAllowedOriginPatterns("*");//.withSockJS();
+        registry.addEndpoint("/ws/multiChat").setAllowedOriginPatterns("*");//.withSockJS();
     }
 
 }
