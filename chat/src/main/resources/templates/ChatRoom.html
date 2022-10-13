@@ -1,132 +1,78 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<head>
-    <meta charset="UTF-8">
-    <title>Chatting</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-        }
-        .container {
-            width: 500px;
-            margin: 0 auto;
-            padding: 25px
-        }
-        .container h1 {
-            text-align: left;
-            padding: 5px 5px 5px 15px;
-            color: #8db0d7;
-            margin-bottom: 20px;
-        }
-        .chatbox {
-            border: 5pt groove #8db0d7;
-            width: 500px;
-            height: 500px;
-            overflow: auto;
-        }
-        input {
-            width: 330px;
-            height: 25px;
-        }
-    </style>
-    <script src="/webjars/stomp-websocket/2.3.4/stomp.js"
-            type="text/javascript"></script>
-    <script src="/webjars/sockjs-client/1.1.2/sockjs.js"
-            type="text/javascript"></script>
-</head>
-
+<html lang="en" xmlns:th="http://thymeleaf.org">
 <body>
-<div id="container" class="container">
-    <div id="chatbox" class="chatbox">
+    <th:block>
+            <div class="container">
+                <div class="col-6">
+                    <h1>chatRoom</h1>
+                </div>
+                <div>
+                    <div id="msgArea" class="col"></div>
+                    <div class="col-6">
+                        <div class="input-group mb-3">
+                            <input type="text" id="msg" class="form-control">
+                            <div class="input-group-append">
+                                <button class="btn btn-outline-secondary" type="button" id="button-send">전송</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6"></div>
+            </div>
 
-    </div>
+            <script src="//code.jquery.com/jquery-1.11.0.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
 
-    <div id="Msg">
-        <table class="inputTable">
-            <tr>
-                <th>메시지</th>
-                <th><input id="message" placeholder="보내실 메시지를 입력하세요."></th>
-                <th><button id="send">보내기</button> <input type="hidden"
-                                                          value="${login.userid}" id="userId" /> <input type="hidden"
-                                                                                                        value="${chatId}" id="chatId" /></th>
-            </tr>
-        </table>
-    </div>
-</div>
+    </th:block>
 
-<script type="text/javascript">
-    $(document).ready(connect);
-    let stompClient = null;
-    let userId = $('#userId').val();
-    let chatId = $("#chatId").val();
-
-    function connect() {
-        console.log("connected");
-        let sockJS = new SockJS('http://localhost:9090/sockJS');
-        let urlSubscribe = '/subscribe/' + chatId;
-        stompClient = Stomp.over(sockJS);
-        stompClient.connect({}, function(frame) {
-            console.log(frame);
-            stompClient.subscribe(urlSubscribe, function(msg) {
-                printMessage(createText(JSON.parse(msg.body)));
-            });
-        }, function(err) {
-            alert('error' + err);
-        });
-    };
-
-    function sendMessage() {
-        let content = $('#message').val();
-        let sendtime = getTime();
-        let json = {
-            'userId' : userId,
-            'message' : content,
-            'sendTime' : sendtime,
-            'chatId' : chatId
-        };
-        $('#message').val("");
-        stompClient.send('/send/chatMessage', {}, JSON.stringify(json));
-    }
-
-    $("#send").click(function() {
-        sendMessage();
-    });
-
-    function getTime() {
-        let today = new Date();
-        let date = today.getFullYear() + '년 ' + (today.getMonth() + 1)
-            + '월 ' + today.getDate() + '일';
-        let minutes = today.getMinutes() + "";
-        if (minutes.length == 1)
-            minutes = '0' + minutes;
-        let time = today.getHours() + ":" + minutes;
-        let sendtime = date + ' ' + time;
-        return sendtime;
-    }
-
-    let inputMessage = document.getElementById('message');
-    let key = Event.key || Event.keyCode;
-
-    inputMessage.addEventListener('keyup', function enterSend(event) {
-        if (key === null) {
-            event.preventDefault();
-        }
-        if (key === 13) {
-            sendMessage();
-        }
-    });
-
-    function createText(messageObj) {
-        return '<p><div class="row alert alert-info"><div class="col_8">'
-            + messageObj.userId + ' : ' + messageObj.message
-            + ',' + messageObj.sendTime + '</div></p>';
-    }
-
-    function printMessage(message) {
-        $("#chatbox").html($("#chatbox").html() + message);
-    }
-
-</script>
 </body>
 </html>
+
+
+<script th:inline="javascript">
+    $(document).ready(function(){
+
+        let sockJs = new SockJS("/stomp/chat");
+        let stomp = Stomp.over(sockJs);
+
+        stomp.connect({}, function (){
+            console.log("STOMP Connection")
+
+            //4. subscribe(path, callback)으로 메세지를 받을 수 있음
+            stomp.subscribe("/sub/chat/room/1", function (chat) {
+                let content = JSON.parse(chat.body);
+
+                let writer = content.writer;
+                let message = content.message;
+                let str = '';
+
+                if(writer === "UserA"){
+                    str = "<div class='col-6'>";
+                    str += "<div class='alert alert-secondary'>";
+                    str += "<b>" + writer + " : " + message + "</b>";
+                    str += "</div></div>";
+                }
+                else{
+                    str = "<div class='col-6'>";
+                    str += "<div class='alert alert-warning'>";
+                    str += "<b>" + writer + " : " + message + "</b>";
+                    str += "</div></div>";
+                }
+
+                $("#msgArea").append(str);
+            });
+
+            //3. send(path, header, message)로 메세지를 보낼 수 있음
+            //stomp.send('/pub/chat/enter', {}, JSON.stringify({roomId: "1", writer: "UserA"}))
+        });
+
+        $("#button-send").on("click", function(e){
+            let msg = document.getElementById("msg");
+
+            stomp.send('/pub/chat/message', {}, JSON.stringify({roomId: "1", message: msg.value, writer: "UserA"}));
+            msg.value = '';
+        });
+    });
+</script>
+
